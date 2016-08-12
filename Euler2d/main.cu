@@ -30,7 +30,7 @@
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h> // or #include "cuda_gl_interop.h"
 
-const float Deltat[1] { 0.000005f };
+const float Deltat[1] { 0.0000015f };
 
 // physics
 const int WIDTH  { 640 } ;
@@ -60,10 +60,10 @@ void make_render(dim3 Ld_in, int iters_per_render_in, GPUAnim2dTex* texmap  ) {
 	for (int i = 0; i < iters_per_render_in; ++i) {
 //		kernelLauncher(d_out, dev_grid2d.dev_rho, dev_grid2d.dev_u, Ld_in, M_i );
 //		kernelLauncher2(d_out, dev_grid2d.dev_rho, dev_grid2d.dev_u, Ld_in, M_i );
-		EulerLauncher(d_out, dev_grid2d.dev_rho, 
+		EulerLauncher2(d_out, dev_grid2d.dev_rho, 
 				dev_grid2d.dev_p, dev_grid2d.dev_u, dev_grid2d.dev_E, Ld_in, M_i) ;
 
-		cudaDeviceSynchronize();
+				cudaDeviceSynchronize();
 	}
 
 	cudaGraphicsUnmapResources(1, &texmap->cuda_pixbufferObj_resource, 0);
@@ -72,6 +72,8 @@ void make_render(dim3 Ld_in, int iters_per_render_in, GPUAnim2dTex* texmap  ) {
 	sprintf(title, "Mass density Visualizer - Iterations=%4d, ", 
 				   iterationCount );
 	glutSetWindowTitle(title);
+
+	cudaDeviceSynchronize();
 }	
 
 
@@ -118,8 +120,8 @@ int main(int argc, char** argv) {
 	// sanity check
 	std::cout << " hds : .x : " << hds[0] << " .y : " << hds[1] << std::endl;
 	
-	set1DerivativeParameters(hds);
-//	set2DerivativeParameters(hds);
+	//	set1DerivativeParameters(hds);
+	set2DerivativeParameters(hds);
 //	set3DerivativeParameters(hds);
 //	set4DerivativeParameters(hds);
 	
@@ -228,6 +230,10 @@ int main(int argc, char** argv) {
 	HANDLE_ERROR(
 		cudaFree( dev_grid2d.dev_E_out ) );
 
+	//	HANDLE_ERROR(
+	//	     cudaDeviceSynchronize()
+	//	     );
+	
 	return 0;
 } 
 

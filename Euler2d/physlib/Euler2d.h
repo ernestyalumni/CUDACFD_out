@@ -27,5 +27,10 @@ void EulerLauncher(uchar4 *d_out,
 	float2 *dev_u, float *dev_E,
 	dim3 Ld, dim3 M_in) ;	
 
+void EulerLauncher2(uchar4 *d_out, 
+	float *dev_rho, float2 *dev_p,
+	float2 *dev_u, float *dev_E,
+	dim3 Ld, dim3 M_in) ;	
+
 
 #endif // __EULER2D_H__

@@ -23,6 +23,7 @@ __global__ void convect_fd_sh( float* dev_rho, float2* dev_u ) ;
 
 __global__ void Euler2dp1( float* dev_rho, float2* dev_p, float2* dev_u, float* dev_E ) ; 
 
+__global__ void Euler2dp2( float* dev_rho, float2* dev_p, float2* dev_u, float* dev_E ) ; 
 
  
 #endif // __CONVECT_H__
