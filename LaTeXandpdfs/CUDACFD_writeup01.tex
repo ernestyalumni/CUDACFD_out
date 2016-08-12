@@ -640,6 +640,20 @@ As before, this code can be easily implemented for 3-dimensions.
 
 \section{Miscellaneous Notes}
 
+convect1dupwind.cu 400 threads, 1.0m, delta t 1/10.
+
+convect3d total threads 1920, 1920, 32, number of threads per block, 16,16,4, delta t 10 to the -5 , 1 m x 1m x 1m block
+
+heat2d 640 640 block, 32, 32 threads per block,
+
+heat3d 480 480 288 block, 16 16 4 threads per block 
+
+convect2dfinitediff 680 680 block, 2, 2 threads per block,
+
+convect3dfinitediff 680 680 320 block, 2,2,2 threads per block
+
+Euler2d 640 640 block, deltat 5 x 10 to the -6, 2,2 threads per block, 10 iterations per render
+
 \subsection{C++11/C++14}
 
 I used the \verb|functional| library to interact well with OpenGL, inherently a C API.  With \verb|nvcc| as of right now, CUDA Toolkit 7.5, you cannot factor code into C++ classes that'll compile with \verb|nvcc| compiler.  But you can use \verb|functional| to make functionals that'll output out functions for OpenGL.  
