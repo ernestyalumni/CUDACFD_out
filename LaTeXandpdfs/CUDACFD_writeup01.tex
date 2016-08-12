@@ -638,6 +638,12 @@ This is implemented in 2-dimensions in \verb|Euler2d/physlib| in \verb|convect.c
 
 As before, this code can be easily implemented for 3-dimensions.  
 
+\section{Miscellaneous Notes}
+
+\subsection{C++11/C++14}
+
+I used the \verb|functional| library to interact well with OpenGL, inherently a C API.  With \verb|nvcc| as of right now, CUDA Toolkit 7.5, you cannot factor code into C++ classes that'll compile with \verb|nvcc| compiler.  But you can use \verb|functional| to make functionals that'll output out functions for OpenGL.  
+
 
 \begin{thebibliography}{9}
 \bibitem{MLeBellacFMortessagneGBatrouni2004}
