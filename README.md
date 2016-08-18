@@ -1,6 +1,8 @@
 # CUDACFD_out
 CUDA C/C++ scripts for Computational Fluid Dynamics (CFD) for presentation purposes (that goes out)
 
+- C++14 standard on host CPU code/C++11 standard on device GPU as of CUDA Toolkit 7.5 
+
 ### (Abridged) Table of Contents
 
 | filename (or directory) | directory | Description | related YouTube link (if there is one) |
@@ -9,3 +11,5 @@ CUDA C/C++ scripts for Computational Fluid Dynamics (CFD) for presentation purpo
 | `CUDACFD_writeup01.pdf` | `./LaTeXandpdfs/` | Compiled pdf file for writeup | [presentation the writeup accompanies](https://youtu.be/xQnEQMrol5I) |
 | `CUDACFD_slides01.tex`  | `./LaTeXandpdfs/` | LaTeX file for slide deck for the main YouTube presentation | [presentation that uses the slide deck](https://youtu.be/xQnEQMrol5I) |
 | `CUDACFD_slides01.pdf`  | `./LaTeXandpdfs/` | Compiled pdf file for slide deck for the main YouTube presentation | [presentation that uses the slide deck](https://youtu.be/xQnEQMrol5I) |
+| `/convect1dupwind`   | `./convect1dupwind`  | 1-dimensional convection according to mass conservation; initial condition for mass density is a gaussian distribution | [screen capture of a convect1dupwind run](https://youtu.be/mRJGl0yfiH8) |
+| `/convect3dupwind`   | `./convect3dupwind`  | 3-dimensional convection according to mass conservation; initial condition for mass density is a gaussian distribution | [screen capture of a convect3dupwind run](https://youtu.be/s1H1zDkpwTQ) |
