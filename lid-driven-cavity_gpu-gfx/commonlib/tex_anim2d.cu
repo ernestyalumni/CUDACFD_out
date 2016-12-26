@@ -79,12 +79,12 @@ __global__ void float_to_char( uchar4* dev_out, const float* outSrc, const int L
 	// convert to long rainbox RGB*
 	// 1. convert to [0.0,1.0] scale from [minval,maxval] (set minval,maxval MANUALLY)
 	// MANUALLY change minval, maxval
-	const float minval = -0.7;
-	const float maxval = 1.0;
+	const float minval = -0.4;
+	const float maxval = 1.6;
 
 	value = (value - minval) / ( maxval - minval) ; 
-	if (value < 0.00001 ) { value = 0.0; }
-	else if (value > 1.0 ) { value = 1.0; }
+	if (value < minval ) { value = 0.0; }
+	else if (value > maxval ) { value = 1.0; }
 	
 	// 2. convert to long rainbox RGB*
 	value = value / 0.20;

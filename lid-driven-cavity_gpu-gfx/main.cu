@@ -60,8 +60,8 @@
 // ################################################################
 
 // discretization (parameters) <==> graphical (parameters)
-const int L_X { 256 };  			// WIDTH   // I've tried values 32.  128, 32, 0.5 works; 256, 32, 0.25 works (even though 256, 64 doesn't); 512, 64, doesn't work, neither does 512,32; 512, 16 works
-const int L_Y { 256 };  			// HEIGHT  // I've tried values 32,  128, 32, 0.5 works
+const int L_X { 512 };  			// WIDTH   // I've tried values 32.  128, 32, 0.5 works; 256, 32, 0.25 works (even though 256, 64 doesn't); 512, 64, doesn't work, neither does 512,32; 512, 16 works
+const int L_Y { 512 };  			// HEIGHT  // I've tried values 32,  128, 32, 0.5 works
 
 // "real", physical parameters
 /** try domain size (non-dimensional) */
@@ -89,7 +89,7 @@ int cycle = 0;
 	
 // iterations for SOR successive over relaxation
 int iter = 0;
-int itermax = 5000;  // I tried values such as 10000, Griebel, et. al. = 100
+int itermax = 200;  // I tried values such as 10000, Griebel, et. al. = 100
 
 /* READ the parameters of the problem                 */
 /* -------------------------------------------------- */ 
@@ -104,7 +104,7 @@ constexpr const float omega = 1.7;
 constexpr const float gamma_mix_param = 0.9;
 
 /** Reynolds number */
-constexpr const float Re_num = 1000.0;
+constexpr const float Re_num = 100000.0;
 
 // SOR iteration tolerance
 const float tol = 0.001;  // Griebel, et. al., and Niemeyer has this at 0.001
@@ -330,13 +330,13 @@ void make_render(dim3 Ld_in, int iters_per_render_in, GPUAnim2dTex* texmap ) {
 		// increase time
 		t += deltat;
 
-/*
+
 		float_to_char<<<inter_gridSize, M_i>>>( d_out, dev_grid2d.u, 
 			grid2d.Ld[0], grid2d.Ld[1] );
-			*/
-		float_to_char<<<inter_gridSize, M_i>>>( d_out, dev_grid2d.v, 
+			
+/*		float_to_char<<<inter_gridSize, M_i>>>( d_out, dev_grid2d.v, 
 			grid2d.Ld[0], grid2d.Ld[1] );
-
+*/
 
 
 	} // for loop, iters per render, END
@@ -431,6 +431,6 @@ int main( int argc, char *argv[] ) {
 	checkCudaErrors( cudaFree( pres_sum_d )); 
 	checkCudaErrors( cudaFree( res_d )); 
 
-	cudaDeviceReset();
+	checkCudaErrors( cudaDeviceReset() );
 	return 0;
 } // END of main
