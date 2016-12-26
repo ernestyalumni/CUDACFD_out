@@ -41,7 +41,8 @@
 #include <thrust/device_vector.h>
 #include <thrust/reduce.h>
 #include <thrust/extrema.h>  // thrust::max_element (thrust::min_element)  
-
+#include <thrust/copy.h>  // thrust::copy
+#include <thrust/execution_policy.h> // thrust::device
 
 int main(int argc, char* argv[]) {
 	// ################################################################
@@ -49,8 +50,8 @@ int main(int argc, char* argv[]) {
 	// ################################################################
 	
 	// discretization (parameters) <==> graphical (parameters)
-	const int L_X { 128 };  			// WIDTH   // I've tried values 32
-	const int L_Y { 128 };  			// HEIGHT  // I've tried values 32
+	const int L_X { 512 };  			// WIDTH   // I've tried values 32.  128, 32, 0.5 works; 256, 32, 0.25 works (even though 256, 64 doesn't); 512, 64, doesn't work, neither does 512,32; 512, 16 works
+	const int L_Y { 512 };  			// HEIGHT  // I've tried values 32,  128, 32, 0.5 works
 
 	// "real", physical parameters
 	/** try domain size (non-dimensional) */
@@ -70,7 +71,7 @@ int main(int argc, char* argv[]) {
 	Grid2d grid2d{LdS, ldS};
 
 	// dynamics (parameters)
-	const dim3 M_i { 32, 32 }; 	// number of threads per block, i.e. Niemeyer's BLOCK_SIZE // I've tried values 4,4
+	const dim3 M_i { 16, 16 }; 	// number of threads per block, i.e. Niemeyer's BLOCK_SIZE // I've tried values 4,4
 
 	float t = 0.0 ;
 	int cycle = 0;
@@ -95,11 +96,11 @@ int main(int argc, char* argv[]) {
 	constexpr const float Re_num = 1000.0;
 
 	// SOR iteration tolerance
-	const float tol = 0.01;  // Griebel, et. al., and Niemeyer has this at 0.001
+	const float tol = 0.001;  // Griebel, et. al., and Niemeyer has this at 0.001
 	
 	// time range
 	const float time_start = 0.0;
-	const float time_end = 1.0;
+	const float time_end = 0.005;  // L_X=L_Y=128, M_i=32, t_f=0.5 works
 	
 	// initial time step size
 	float deltat = 0.02; // I've tried values 0.002
@@ -116,16 +117,39 @@ int main(int argc, char* argv[]) {
 	float max_u = 1.0e-10;
 	float max_v = 1.0e-10;
 
+	// variables to store maximum velocities
+	thrust::device_vector<float> max_u_vec(grid2d.NFLAT());
+	thrust::device_vector<float> max_v_vec(grid2d.NFLAT());
+
+	// get max velocity for initial values (including BCs)
+	#pragma unroll
+	for (auto j = 1; j < grid2d.staggered_Ld[1]; ++j) {
+		#pragma unroll
+		for (auto i = 0; i < grid2d.staggered_Ld[0]; ++i) {
+			max_u = std::fmax( max_u, 
+				fabs( dev_grid2d.u[ i + grid2d.staggered_Ld[0] * j] )  ) ;
+		}
+	}	
+	#pragma unroll
+	for (auto j = 0; j < grid2d.staggered_Ld[1]; ++j) {
+		#pragma unroll
+		for (auto i = 1; i < grid2d.staggered_Ld[0]; ++i) {
+			max_v = std::fmax( max_v, 
+				fabs( dev_grid2d.v[ i + grid2d.staggered_Ld[0] * j] )  ) ;
+		}
+	}	
+	
+
 // This is why you can't do (dev_grid2d->u).end()
 // cf. http://stackoverflow.com/questions/13104138/error-expression-must-have-a-pointer-type-when-using-the-this-keyword
-	thrust::device_vector<float>::iterator max_u_iter = 
+/*	thrust::device_vector<float>::iterator max_u_iter = 
 		thrust::max_element( dev_grid2d.u.begin(), dev_grid2d.u.end() );
 	max_u = std::fmax( *max_u_iter, max_u ) ;
 
 	thrust::device_vector<float>::iterator max_v_iter = 
 		thrust::max_element( dev_grid2d.v.begin(), dev_grid2d.v.end() );
 	max_v = std::fmax( *max_v_iter, max_v ) ;
-	
+*/	
 
 	////////////////////////////////////////	
 	// block and grid dimensions
@@ -142,6 +166,9 @@ int main(int argc, char* argv[]) {
 	dim3 block_vpbc( M_i.y,1) ; 
 	dim3 grid_vpbc( (grid2d.Ld[1] + M_i.y -1)/M_i.y , 1) ; 		
 */
+	// pressure kernel, alternative way to launch threads in blocks, so called sPencil
+	dim3 block_press( M_i.x, 1 ) ; 
+	dim3 grid_press( ( grid2d.staggered_Ld[0] + block_press.x - 1)/block_press.x , grid2d.staggered_Ld[1] ) ;
 	////////////////////////////////////////
 
 	// residual variable
@@ -149,6 +176,7 @@ int main(int argc, char* argv[]) {
 	thrust::device_vector<float> residualsq(grid2d.staggered_SIZE() );
 	float* residualsq_Array = thrust::raw_pointer_cast( residualsq.data() );
 
+	
 	// pressure sum 
 	/* Note that the pressure summation needed to normalize to the pressure magnitude for 
 	 * relative tolerance is, in Griebel, et. al's implementation, the first part of the 
@@ -157,7 +185,26 @@ int main(int argc, char* argv[]) {
 	thrust::device_vector<float> pres_sum_vec(grid2d.NFLAT());
 	float* pres_sum_Arr = thrust::raw_pointer_cast( pres_sum_vec.data() );
 	
-	
+/*	
+	std::cout << " This is max_u : " << max_u << std::endl;
+	std::cout << " This is max_v : " << max_v << std::endl;
+*/	
+/*
+	std::cout << " This is dx : " << grid2d.hd[0] << std::endl;
+	std::cout << " This is dy : " << grid2d.hd[1] << std::endl;
+
+	// sanity check
+	for (auto j = (grid2d.staggered_Ld[1]-1); j >= 0; --j) {
+		for (auto i = 0; i < grid2d.staggered_Ld[0]; ++i) {
+			std::cout << dev_grid2d.u[i+(grid2d.staggered_Ld[0])*j] << " " ; }
+		std::cout << std::endl ; }
+	std::cout << "\n dev_grid2d.v : " << std::endl; 
+	for (auto j = (grid2d.staggered_Ld[1]-1); j >= 0; --j) {
+		for (auto i = 0; i < grid2d.staggered_Ld[0]; ++i) {
+			std::cout << dev_grid2d.v[i+(grid2d.staggered_Ld[0])*j] << " " ; }
+		std::cout << std::endl ; }
+*/	
+
 
 	// time-step size based on grid and Reynolds number
 	float dt_Re = 0.5 * Re_num / ((1.0 / (grid2d.hd[0] * grid2d.hd[0])) + (1.0 / (grid2d.hd[1] * grid2d.hd[1])));
@@ -176,6 +223,10 @@ int main(int argc, char* argv[]) {
 		// calculate time step based on stability and CFL
 		deltat = std::fmin( (grid2d.hd[0] / max_u), ( grid2d.hd[1]/ max_v) );
 		deltat = tau * std::fmin( dt_Re, deltat);
+
+		if ((t+deltat) >= time_end) {
+			deltat = time_end - t; }
+
 	
 		// sanity check 
 /*		if (cycle==0) {
@@ -201,10 +252,14 @@ int main(int argc, char* argv[]) {
 				std::cout << dev_grid2d.G[i+(grid2d.staggered_Ld[0])*j] << " " ; }
 			std::cout << std::endl ; }
 		}
-*/	
+	*/
+		std::cout << " cycle : " << cycle << "\n beginning of time loop, before F,G, computed; \n" << 
+			"max_u : " << max_u << " max_v : " << max_v << " deltat : " << deltat << 
+			" (deltax) grid2d.hd[0] : " << grid2d.hd[0] << " (deltay) grid2d.hd[1] : " << grid2d.hd[1] << std::endl; 
 	
-		if ((t+deltat) >= time_end) {
-			deltat = time_end - t; }
+
+		// END sanity check
+	
 	
 		/* Compute tentative velocity field (F,G) */
 		// i.e. calculate F and G
@@ -253,6 +308,9 @@ int main(int argc, char* argv[]) {
 	p0_norm = thrust::reduce( pres_sum_vec.begin(), pres_sum_vec.end(), 0, thrust::plus<float>() );
 	
 	p0_norm =sqrt(p0_norm / (static_cast<float>( grid2d.NFLAT() ) ));
+	
+	// sanity check
+	std::cout << " p0_norm after sqrt, but right before compute RHS : " << p0_norm << std::endl;
 	
 	if (p0_norm < 0.0001) {
 		p0_norm = 1.0;
@@ -303,9 +361,12 @@ int main(int argc, char* argv[]) {
 			dev_grid2d.p_temp_arr, 
 			grid2d.Ld[0], grid2d.Ld[1], grid2d.hd[0], grid2d.hd[1], omega) ; 
 
-		(dev_grid2d.p).swap( dev_grid2d.p_temp );
-	*/
+		thrust::copy( thrust::device, dev_grid2d.p_temp.begin(), dev_grid2d.p_temp.end(), dev_grid2d.p.begin() );
+			// dev_grid2d.p is no a copy of dev_grid2d.p_temp
+*/
 		// END of operations needed to do poisson; poisson and thrust::swap
+
+
 		
 		poisson_redblack<<<gridSize, M_i>>>( dev_grid2d.p_arr, dev_grid2d.RHS_arr, 
 			grid2d.Ld[0], grid2d.Ld[1], grid2d.hd[0], grid2d.hd[1], omega) ; 
@@ -345,9 +406,10 @@ int main(int argc, char* argv[]) {
 		norm_L2 = sqrt( norm_L2/ ( static_cast<float>( grid2d.NFLAT() )) ) / p0_norm;
 
 		// sanity check
-  		if ((cycle==0) && ((iter == 1) || (iter == 2) ) ) {
-			std::cout << " norm_L2 : " << std::setprecision(9) << norm_L2 << std::endl;
-	}
+/*  		if ((cycle==0) && ((iter == 1) || (iter == 2) ) ) { 
+			std::cout << " iter : " << iter << " norm_L2 : " << std::setprecision(9) << norm_L2 << std::endl; 
+/*	}
+*/
 
 		// if tolerance has been reached, end SOR iterations
 		if (norm_L2 < tol) {
@@ -369,7 +431,7 @@ int main(int argc, char* argv[]) {
 			dev_grid2d.G_arr, grid2d.Ld[0], grid2d.Ld[1], deltat, grid2d.hd[1] );
 
 	// sanity check
-		if ((cycle==0) || (cycle==1) || (cycle==2)) {
+/*		if ((cycle==0) || (cycle==1) || (cycle==2)) {
 		std::cout << "\n cycle = " << cycle << std::endl;
 		std::cout << "\n dev_grid2d.u : " << std::endl; 
 		for (auto j = (grid2d.staggered_Ld[1]-1); j >= 0; --j) {
@@ -382,7 +444,14 @@ int main(int argc, char* argv[]) {
 				std::cout << std::setprecision(4) << dev_grid2d.v[i+(grid2d.staggered_Ld[0])*j] << " " ; }
 			std::cout << std::endl ; }
 		}
-		// END sanity check
+	std::cout << " Right after Poisson relaxation calculation : " << std::endl;
+	std::cout << "\n dev_grid2d.p : " << std::endl; 
+		for (auto j = (grid2d.staggered_Ld[1]-1); j >= 0; --j) {
+			for (auto i = 0; i < grid2d.staggered_Ld[0]; ++i) {
+				std::cout << std::setprecision(2) << dev_grid2d.p[i+(grid2d.staggered_Ld[0])*j] << " " ; }
+			std::cout << std::endl ; }
+	*/	
+	// END sanity check
 
 
 
@@ -390,18 +459,25 @@ int main(int argc, char* argv[]) {
 		max_v = 1.0e-10;
 		max_u = 1.0e-10;
 	
+		for (auto j = 0 ; j < grid2d.Ld[1] ; ++j) { 
+			for (auto i = 0; i < grid2d.Ld[0]; ++i) {
+				max_u_vec[i + grid2d.Ld[0]*j] = dev_grid2d.u[ (i+1) + grid2d.staggered_Ld[0] * (j+1) ] ;  
+				max_v_vec[i + grid2d.Ld[0]*j] = dev_grid2d.v[ (i+1) + grid2d.staggered_Ld[0] * (j+1) ] ;
+			}
+		}
+
 		thrust::device_vector<float>::iterator max_u_iter = 
-			thrust::max_element( dev_grid2d.u.begin(), dev_grid2d.u.end() );
+			thrust::max_element( max_u_vec.begin(), max_u_vec.end() );
 		max_u = std::fmax( *max_u_iter, max_u);
 
 		thrust::device_vector<float>::iterator max_v_iter = 
-			thrust::max_element( dev_grid2d.v.begin(), dev_grid2d.v.end() );
+			thrust::max_element( max_v_vec.begin(), max_v_vec.end() );
 		max_v = std::fmax( *max_v_iter, max_v);
 
 		// sanity check
-		std::cout << "max_u : " << std::setprecision(6) << max_u << ", max_v : " << std::setprecision(6) << 
+/*		std::cout << " After calculation of new u,v \n" << "max_u : " << std::setprecision(6) << max_u << ", max_v : " << std::setprecision(6) << 
 			max_v << ", deltat : " << deltat << ", dx : " << grid2d.hd[0] << ", dy : " << grid2d.hd[1] << std::endl;
-
+*/
 
 
 		// set velocity boundary conditions
@@ -422,6 +498,15 @@ int main(int argc, char* argv[]) {
 		t += deltat;
 
 	} // END end for loop, time iteration loop 
+
+	std::cout << " Right after time iteration loop, final p : " << std::endl;
+	std::cout << "\n dev_grid2d.p : " << std::endl; 
+//		for (auto j = (grid2d.staggered_Ld[1]-1); j >= 0; --j) {
+//			for (auto i = 0; i < grid2d.staggered_Ld[0]; ++i) {
+		for (auto j = (grid2d.staggered_Ld[1]-1)/2; j >= 0; --j) {
+			for (auto i = 0; i < grid2d.staggered_Ld[0]/2; ++i) {
+				std::cout << std::setprecision(3) << dev_grid2d.p[i+(grid2d.staggered_Ld[0])*j] << " " ; }
+			std::cout << std::endl ; }
 
 
 	

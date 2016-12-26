@@ -94,8 +94,18 @@ __global__ void calculate_u( float* u, const float* p, const float* F,
 __global__ void calculate_v( float* v, const float* p, const float* G, 
 	const int imax, const int jmax, const float deltat, const float deltay ) ;
 
+/* --------------------------------------------------------- */
+/* Routines to assist in the 								 */		
+/* Computation of adaptive time stepsize satisfying  		 */
+/* the CFL stability criteria								 */
+/* and set the flag "write" if some data has to be written   */
+/* into a file.												 */
+/* --------------------------------------------------------- */
 
+/*
+void calculate_max_uv( thrust::device_vector<float> & max_u_vec, thrust::device_vector<float> & max_v_vec, 
+	const thrust::device_vector<float> u_vec, const thrust::device_vector<float> v_vec ); 
+*/
 
 
 #endif // __U_P_H__
-

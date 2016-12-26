@@ -62,7 +62,7 @@ __host__ void set_lidcavity_BConditions_host( Grid2d & grid2d) {
 	const int jmax { grid2d.Ld[1] } ;
 
 	
-	for (auto i = 1; i< imax+1;i++) {
+	for (auto i = 0; i< imax+1;i++) {
 		/* northern boundary */
 		grid2d.u[grid2d.staggered_flatten( i,jmax+1)] = 
 			2.0 - grid2d.u[grid2d.staggered_flatten( i, jmax)] ; }
@@ -82,7 +82,7 @@ void set_BConditions( Dev_Grid2d & dev_grid2d ) {
 	/* western and eastern boundary, i.e. x=0, and x=L_x+1 i.e. x=imax+1 */
 
 	/* no slip */
-	for (auto j = 0; j<= (jmax+1);j++) { 
+	for (auto j = 1; j<= (jmax+1);j++) { 
 		/* western boundary */
 		dev_grid2d.u[dev_grid2d.staggered_flatten( 0,j) ] = 0.0;  	   /* u = 0  	*/
 		dev_grid2d.v[dev_grid2d.staggered_flatten( 0,j) ] = 
@@ -97,7 +97,7 @@ void set_BConditions( Dev_Grid2d & dev_grid2d ) {
 	/* northern and southern boundary, i.e. y=0 and y=L_y+1, i.e. y=jmax+1 */ 
 
 	/* no slip */
-	for (auto i = 0; i<= (imax+1);i++) {
+	for (auto i = 1; i<= (imax+1);i++) {
 		/* northern boundary */
 		dev_grid2d.v[dev_grid2d.staggered_flatten( i,jmax)] = 0.0;  /* v = 0  */
 		dev_grid2d.u[dev_grid2d.staggered_flatten( i,jmax+1)] = 
