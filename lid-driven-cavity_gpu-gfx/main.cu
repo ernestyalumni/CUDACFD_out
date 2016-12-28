@@ -78,7 +78,6 @@ Dev_Grid2d dev_grid2d( dev_L2);
 constexpr std::array<int,2> LdS { L_X, L_Y } ;
 constexpr std::array<float,2> ldS { l_X, l_Y };
 
-//Grid2d grid2d{LdS, ldS};
 Grid2d grid2d(LdS, ldS);
 
 // dynamics (parameters)
