@@ -44,6 +44,12 @@
 #include <thrust/copy.h>  // thrust::copy
 #include <thrust/execution_policy.h> // thrust::device
 
+// File I/O includes
+#include <fstream> 		// std::ofstream
+
+#include <array> 		// std::array
+#include <string>       // std::string, std::string to_string
+
 int main(int argc, char* argv[]) {
 	// ################################################################
 	// ####################### Initialization #########################
@@ -71,14 +77,14 @@ int main(int argc, char* argv[]) {
 	Grid2d grid2d{LdS, ldS};
 
 	// dynamics (parameters)
-	const dim3 M_i { 16, 16 }; 	// number of threads per block, i.e. Niemeyer's BLOCK_SIZE // I've tried values 4,4
+	const dim3 M_i { 32, 32 }; 	// number of threads per block, i.e. Niemeyer's BLOCK_SIZE // I've tried values 4,4
 
 	float t = 0.0 ;
 	int cycle = 0;
 	
 	// iterations for SOR successive over relaxation
 	int iter = 0;
-	int itermax = 1000000;  // I tried values such as 10000, Griebel, et. al. = 100
+	int itermax = 50000;  // I tried values such as 10000, Griebel, et. al. = 100
 
 	/* READ the parameters of the problem                 */
 	/* -------------------------------------------------- */ 
@@ -100,7 +106,7 @@ int main(int argc, char* argv[]) {
 	
 	// time range
 	const float time_start = 0.0;
-	const float time_end = 0.005;  // L_X=L_Y=128, M_i=32, t_f=0.5 works
+	const float time_end = 16.000;  // L_X=L_Y=128, M_i=32, t_f=0.5 works
 	
 	// initial time step size
 	float deltat = 0.02; // I've tried values 0.002
@@ -157,18 +163,10 @@ int main(int argc, char* argv[]) {
 	dim3 gridSize ( (grid2d.staggered_Ld[0] + M_i.x -1)/M_i.x, 
 						(grid2d.staggered_Ld[1] + M_i.y - 1)/M_i.y) ;
 	
-/* comment this out of final form	
-	// horizontal pressure boundary conditions
-	dim3 block_hpbc( M_i.x,1) ; 
-	dim3 grid_hpbc( (grid2d.Ld[0] + M_i.x -1)/M_i.x , 1) ; 
-	
-	// vertical pressure boundary conditions
-	dim3 block_vpbc( M_i.y,1) ; 
-	dim3 grid_vpbc( (grid2d.Ld[1] + M_i.y -1)/M_i.y , 1) ; 		
-*/
 	// pressure kernel, alternative way to launch threads in blocks, so called sPencil
-	dim3 block_press( M_i.x, 1 ) ; 
+/*	dim3 block_press( M_i.x, 1 ) ; 
 	dim3 grid_press( ( grid2d.staggered_Ld[0] + block_press.x - 1)/block_press.x , grid2d.staggered_Ld[1] ) ;
+	* */
 	////////////////////////////////////////
 
 	// residual variable
@@ -185,29 +183,28 @@ int main(int argc, char* argv[]) {
 	thrust::device_vector<float> pres_sum_vec(grid2d.NFLAT());
 	float* pres_sum_Arr = thrust::raw_pointer_cast( pres_sum_vec.data() );
 	
-/*	
-	std::cout << " This is max_u : " << max_u << std::endl;
-	std::cout << " This is max_v : " << max_v << std::endl;
-*/	
-/*
-	std::cout << " This is dx : " << grid2d.hd[0] << std::endl;
-	std::cout << " This is dy : " << grid2d.hd[1] << std::endl;
-
-	// sanity check
-	for (auto j = (grid2d.staggered_Ld[1]-1); j >= 0; --j) {
-		for (auto i = 0; i < grid2d.staggered_Ld[0]; ++i) {
-			std::cout << dev_grid2d.u[i+(grid2d.staggered_Ld[0])*j] << " " ; }
-		std::cout << std::endl ; }
-	std::cout << "\n dev_grid2d.v : " << std::endl; 
-	for (auto j = (grid2d.staggered_Ld[1]-1); j >= 0; --j) {
-		for (auto i = 0; i < grid2d.staggered_Ld[0]; ++i) {
-			std::cout << dev_grid2d.v[i+(grid2d.staggered_Ld[0])*j] << " " ; }
-		std::cout << std::endl ; }
-*/	
-
 
 	// time-step size based on grid and Reynolds number
 	float dt_Re = 0.5 * Re_num / ((1.0 / (grid2d.hd[0] * grid2d.hd[0])) + (1.0 / (grid2d.hd[1] * grid2d.hd[1])));
+
+	// ################################################################
+	// ########################## File I/O ############################
+	// ######################### parameters ###########################
+	volatile bool fileiot014flag = false; // flag when t = 1.4 is reached 
+	volatile bool fileiot024flag = false; // flag when t = 2.4 is reached 
+	volatile bool fileiot034flag = false; // flag when t = 3.4 is reached 
+	volatile bool fileiot044flag = false; // flag when t = 4.4 is reached 
+	volatile bool fileiot054flag = false; // flag when t = 5.4 is reached 
+	volatile bool fileiot064flag = false; // flag when t = 6.4 is reached 
+	volatile bool fileiot074flag = false; // flag when t = 7.4 is reached 
+	volatile bool fileiot084flag = false; // flag when t = 8.4 is reached 
+	volatile bool fileiot094flag = false; // flag when t = 9.4 is reached 
+	volatile bool fileiot126flag = false; // flag when t = 12.6 is reached 
+	volatile bool fileiot150flag = false; // flag when t = 15. is reached 
+
+
+
+	// END of File I/O parameters
 	
 	// ################################################################
 	// #######################               ##########################
@@ -226,39 +223,6 @@ int main(int argc, char* argv[]) {
 
 		if ((t+deltat) >= time_end) {
 			deltat = time_end - t; }
-
-	
-		// sanity check 
-/*		if (cycle==0) {
-		std::cout << " t : " << t << " deltat : " << deltat << " dx : " << grid2d.hd[0] << " dy : " << grid2d.hd[1] << std::endl; 
-		std::cout << " dev_grid2d.u : " << std::endl; 
-		for (auto j = (grid2d.staggered_Ld[1]-1); j >= 0; --j) {
-			for (auto i = 0; i < grid2d.staggered_Ld[0]; ++i) {
-				std::cout << dev_grid2d.u[i+(grid2d.staggered_Ld[0])*j] << " " ; }
-			std::cout << std::endl ; }
-		std::cout << "\n dev_grid2d.v : " << std::endl; 
-		for (auto j = (grid2d.staggered_Ld[1]-1); j >= 0; --j) {
-			for (auto i = 0; i < grid2d.staggered_Ld[0]; ++i) {
-				std::cout << dev_grid2d.v[i+(grid2d.staggered_Ld[0])*j] << " " ; }
-			std::cout << std::endl ; }
-		std::cout << "\n dev_grid2d.F : " << std::endl; 
-		for (auto j = (grid2d.staggered_Ld[1]-1); j >= 0; --j) {
-			for (auto i = 0; i < grid2d.staggered_Ld[0]; ++i) {
-				std::cout << dev_grid2d.F[i+(grid2d.staggered_Ld[0])*j] << " " ; }
-			std::cout << std::endl ; }
-		std::cout << "\n dev_grid2d.G : " << std::endl; 
-		for (auto j = (grid2d.staggered_Ld[1]-1); j >= 0; --j) {
-			for (auto i = 0; i < grid2d.staggered_Ld[0]; ++i) {
-				std::cout << dev_grid2d.G[i+(grid2d.staggered_Ld[0])*j] << " " ; }
-			std::cout << std::endl ; }
-		}
-	*/
-		std::cout << " cycle : " << cycle << "\n beginning of time loop, before F,G, computed; \n" << 
-			"max_u : " << max_u << " max_v : " << max_v << " deltat : " << deltat << 
-			" (deltax) grid2d.hd[0] : " << grid2d.hd[0] << " (deltay) grid2d.hd[1] : " << grid2d.hd[1] << std::endl; 
-	
-
-		// END sanity check
 	
 	
 		/* Compute tentative velocity field (F,G) */
@@ -274,25 +238,6 @@ int main(int argc, char* argv[]) {
 			grid2d.Ld[0], grid2d.Ld[1], grid2d.hd[0], grid2d.hd[1],
 			gamma, Re_num); 
 
-		// sanity check 
-/*		if (cycle==0) {
-		std::cout << "\n after compute_F,G : " << std::endl;
-		std::cout << "\n dev_grid2d.F : " << std::endl; 
-		for (auto j = (grid2d.staggered_Ld[1]-1); j >= 0; --j) {
-			for (auto i = 0; i < grid2d.staggered_Ld[0]; ++i) {
-				std::cout << dev_grid2d.F[i+(grid2d.staggered_Ld[0])*j] << " " ; }
-			std::cout << std::endl ; }
-		std::cout << "\n dev_grid2d.G : " << std::endl; 
-		for (auto j = (grid2d.staggered_Ld[1]-1); j >= 0; --j) {
-			for (auto i = 0; i < grid2d.staggered_Ld[0]; ++i) {
-				std::cout << dev_grid2d.G[i+(grid2d.staggered_Ld[0])*j] << " " ; }
-			std::cout << std::endl ; }
-		}
-	*/	
-		
-	//copy_press_int( dev_grid2d.p_arr, pres_sum_Arr, grid2d.Ld[0], grid2d.Ld[1] ); 
-	// sanity check
-	//std::cout << " dev_grid2d.p.size() : " << dev_grid2d.p.size() << " pres_sum_vec.size() : " << pres_sum_vec.size() << std::endl;
 	
 
 	// get L2 norm of initial pressure
@@ -309,9 +254,6 @@ int main(int argc, char* argv[]) {
 	
 	p0_norm =sqrt(p0_norm / (static_cast<float>( grid2d.NFLAT() ) ));
 	
-	// sanity check
-	std::cout << " p0_norm after sqrt, but right before compute RHS : " << p0_norm << std::endl;
-	
 	if (p0_norm < 0.0001) {
 		p0_norm = 1.0;
 	}
@@ -326,21 +268,6 @@ int main(int argc, char* argv[]) {
 		dev_grid2d.Ld.x, dev_grid2d.Ld.y, 
 		deltat, grid2d.hd[0], grid2d.hd[1] );
 	
-	// sanity check 
-/*		if (cycle==0) {
-		std::cout << "\n dev_grid2d.p : " << std::endl; 
-		for (auto j = (grid2d.staggered_Ld[1]-1); j >= 0; --j) {
-			for (auto i = 0; i < grid2d.staggered_Ld[0]; ++i) {
-				std::cout << dev_grid2d.p[i+(grid2d.staggered_Ld[0])*j] << " " ; }
-			std::cout << std::endl ; }
-
-		std::cout << "\n dev_grid2d.p_temp : " << std::endl; 
-		for (auto j = (grid2d.staggered_Ld[1]-1); j >= 0; --j) {
-			for (auto i = 0; i < grid2d.staggered_Ld[0]; ++i) {
-				std::cout << dev_grid2d.p_temp[i+(grid2d.staggered_Ld[0])*j] << " " ; }
-			std::cout << std::endl ; }
-}
-//* */
 	float norm_L2; // residual; res for Griebel, et. al., norm_L2 for Niemeyer
 	
 	/* Solve the pressure equation by successive over relaxation */
@@ -348,7 +275,6 @@ int main(int argc, char* argv[]) {
 	// calculate new pressure
 	for (iter = 1; iter <= itermax; iter++) {
 		// set pressure boundary conditions
-	
 		set_horiz_press_BCs( dev_grid2d ) ;
 		set_vert_press_BCs( dev_grid2d ) ;
 	
@@ -371,45 +297,18 @@ int main(int argc, char* argv[]) {
 		poisson_redblack<<<gridSize, M_i>>>( dev_grid2d.p_arr, dev_grid2d.RHS_arr, 
 			grid2d.Ld[0], grid2d.Ld[1], grid2d.hd[0], grid2d.hd[1], omega) ; 
 
-		
-		// sanity check
-/*
-  		if ((cycle==0) && ((iter == 1) || (iter == 2) ) ) {
-		std::cout << "\n dev_grid2d.p : " << std::endl; 
-		for (auto j = (grid2d.staggered_Ld[1]-1); j >= 0; --j) {
-			for (auto i = 0; i < grid2d.staggered_Ld[0]; ++i) {
-				std::cout << dev_grid2d.p[i+(grid2d.staggered_Ld[0])*j] << " " ; }
-			std::cout << std::endl ; }
-		}
-*/
-
 
 		// calculate residual values
 		compute_residual<<<gridSize, M_i>>>( dev_grid2d.p_arr, dev_grid2d.RHS_arr, 
 			grid2d.Ld[0], grid2d.Ld[1], grid2d.hd[0], grid2d.hd[1], 
 			residualsq_Array) ; 
 
-		// sanity check
-/*
-  		if ((cycle==0) && ((iter == 1) || (iter == 2) ) ) {
-		std::cout << "\n residualsq : " << std::endl; 
-		for (auto j = (grid2d.staggered_Ld[1]-1); j >= 0; --j) {
-			for (auto i = 0; i < grid2d.staggered_Ld[0]; ++i) {
-				std::cout << residualsq[i+(grid2d.staggered_Ld[0])*j] << " " ; }
-			std::cout << std::endl ; }
-		}
-*/
 		
 		norm_L2 = thrust::reduce( residualsq.begin(), residualsq.end(), 0, thrust::plus<float>() );
 		
 		// calculate residual
 		norm_L2 = sqrt( norm_L2/ ( static_cast<float>( grid2d.NFLAT() )) ) / p0_norm;
 
-		// sanity check
-/*  		if ((cycle==0) && ((iter == 1) || (iter == 2) ) ) { 
-			std::cout << " iter : " << iter << " norm_L2 : " << std::setprecision(9) << norm_L2 << std::endl; 
-/*	}
-*/
 
 		// if tolerance has been reached, end SOR iterations
 		if (norm_L2 < tol) {
@@ -418,7 +317,9 @@ int main(int argc, char* argv[]) {
 	} // END for loop, to solve the pressure equation by SOR
 
 	std::cout << "Time = " << t + deltat << ", delta t = " << deltat << ", iter = " 
-		<< iter << 	", res (or norm_L2) = " << std::setprecision(9) << norm_L2 << ", cycle = " << cycle << std::endl; 
+		<< iter << 	", res (or norm_L2) = " << std::setprecision(9) << norm_L2 << 
+		", max_u : " << max_u << ", max_v : " << max_v << ", p0_norm : " << p0_norm << 
+		", cycle = " << cycle << std::endl; 
 
 		/* Compute the new velocity field */
 		// i.e. calculate new velocities
@@ -429,30 +330,6 @@ int main(int argc, char* argv[]) {
 
 		calculate_v<<<gridSize,M_i>>>( dev_grid2d.v_arr, dev_grid2d.p_arr,
 			dev_grid2d.G_arr, grid2d.Ld[0], grid2d.Ld[1], deltat, grid2d.hd[1] );
-
-	// sanity check
-/*		if ((cycle==0) || (cycle==1) || (cycle==2)) {
-		std::cout << "\n cycle = " << cycle << std::endl;
-		std::cout << "\n dev_grid2d.u : " << std::endl; 
-		for (auto j = (grid2d.staggered_Ld[1]-1); j >= 0; --j) {
-			for (auto i = 0; i < grid2d.staggered_Ld[0]; ++i) {
-				std::cout << std::setprecision(4) << dev_grid2d.u[i+(grid2d.staggered_Ld[0])*j] << " " ; }
-			std::cout << std::endl ; }
-		std::cout << "\n dev_grid2d.v : " << std::endl; 
-		for (auto j = (grid2d.staggered_Ld[1]-1); j >= 0; --j) {
-			for (auto i = 0; i < grid2d.staggered_Ld[0]; ++i) {
-				std::cout << std::setprecision(4) << dev_grid2d.v[i+(grid2d.staggered_Ld[0])*j] << " " ; }
-			std::cout << std::endl ; }
-		}
-	std::cout << " Right after Poisson relaxation calculation : " << std::endl;
-	std::cout << "\n dev_grid2d.p : " << std::endl; 
-		for (auto j = (grid2d.staggered_Ld[1]-1); j >= 0; --j) {
-			for (auto i = 0; i < grid2d.staggered_Ld[0]; ++i) {
-				std::cout << std::setprecision(2) << dev_grid2d.p[i+(grid2d.staggered_Ld[0])*j] << " " ; }
-			std::cout << std::endl ; }
-	*/	
-	// END sanity check
-
 
 
 		// get maximum u- and v- velocities
@@ -474,22 +351,16 @@ int main(int argc, char* argv[]) {
 			thrust::max_element( max_v_vec.begin(), max_v_vec.end() );
 		max_v = std::fmax( *max_v_iter, max_v);
 
-		// sanity check
-/*		std::cout << " After calculation of new u,v \n" << "max_u : " << std::setprecision(6) << max_u << ", max_v : " << std::setprecision(6) << 
-			max_v << ", deltat : " << deltat << ", dx : " << grid2d.hd[0] << ", dy : " << grid2d.hd[1] << std::endl;
-*/
 
 
 		// set velocity boundary conditions
 		/* Set boundary conditions */
 		/* ----------------------- */
-		
 		set_BConditions( dev_grid2d ) ;
 		
 		/* Set special boundary conditions */
 		/* Overwrite preset default values */
 		/* ------------------------------- */
-		
 		set_lidcavity_BConditions( dev_grid2d  );
 
 		cudaDeviceSynchronize();
@@ -497,8 +368,281 @@ int main(int argc, char* argv[]) {
 		// increase time
 		t += deltat;
 
+
+	// ################################################################
+	// ########################## File I/O ############################
+	// ################################################################
+	if ((t>1.4) && (fileiot014flag == false) ) { 
+			std::ofstream ofile; // no file mode is set
+	ofile.open("velocity_gput014.dat"); // mode implicitly out and trunc
+
+	ofile << "#x\ty\tu\tv\n" ;
+	
+	std::array<int,2> ix_ind;
+	std::array<float,2> x_ind;
+	
+	for (auto j = 0; j <= grid2d.Ld[1]; j++) {
+		for (auto i = 0; i <= grid2d.Ld[0]; i++) {
+			float u_ij = dev_grid2d.u[ i + grid2d.staggered_Ld[0] * j ] ; 
+			float v_ij = dev_grid2d.v[ i + grid2d.staggered_Ld[0] * j ] ; 
+			
+			ix_ind[0] = i; 
+			ix_ind[1] = j; 
+			x_ind = grid2d.gridpt_to_space( ix_ind ) ;
+			
+			ofile << x_ind[0] << "\t" << x_ind[1] << "\t" << u_ij << "\t" << v_ij << std::endl;
+		}
+	}
+	ofile.close();
+	fileiot014flag = true;
+} // END if of (t = 1.4 case)
+	else if ((t>2.4) && (fileiot024flag == false) ) { 
+			std::ofstream ofile; // no file mode is set
+	ofile.open("velocity_gput024.dat"); // mode implicitly out and trunc
+
+	ofile << "#x\ty\tu\tv\n" ;
+	
+	std::array<int,2> ix_ind;
+	std::array<float,2> x_ind;
+	
+	for (auto j = 0; j <= grid2d.Ld[1]; j++) {
+		for (auto i = 0; i <= grid2d.Ld[0]; i++) {
+			float u_ij = dev_grid2d.u[ i + grid2d.staggered_Ld[0] * j ] ; 
+			float v_ij = dev_grid2d.v[ i + grid2d.staggered_Ld[0] * j ] ; 
+			
+			ix_ind[0] = i; 
+			ix_ind[1] = j; 
+			x_ind = grid2d.gridpt_to_space( ix_ind ) ;
+			
+			ofile << x_ind[0] << "\t" << x_ind[1] << "\t" << u_ij << "\t" << v_ij << std::endl;
+		}
+	}
+	ofile.close();
+	fileiot024flag = true;
+} // END if of (t = 2.4 case)
+	else if ((t>3.4) && (fileiot034flag == false) ) { 
+			std::ofstream ofile; // no file mode is set
+	ofile.open("velocity_gput034.dat"); // mode implicitly out and trunc
+
+	ofile << "#x\ty\tu\tv\n" ;
+	
+	std::array<int,2> ix_ind;
+	std::array<float,2> x_ind;
+	
+	for (auto j = 0; j <= grid2d.Ld[1]; j++) {
+		for (auto i = 0; i <= grid2d.Ld[0]; i++) {
+			float u_ij = dev_grid2d.u[ i + grid2d.staggered_Ld[0] * j ] ; 
+			float v_ij = dev_grid2d.v[ i + grid2d.staggered_Ld[0] * j ] ; 
+			
+			ix_ind[0] = i; 
+			ix_ind[1] = j; 
+			x_ind = grid2d.gridpt_to_space( ix_ind ) ;
+			
+			ofile << x_ind[0] << "\t" << x_ind[1] << "\t" << u_ij << "\t" << v_ij << std::endl;
+		}
+	}
+	ofile.close();
+	fileiot034flag = true;
+} // END if of (t = 3.4 case)
+	else if ((t>4.4) && (fileiot044flag == false) ) { 
+			std::ofstream ofile; // no file mode is set
+	ofile.open("velocity_gput044.dat"); // mode implicitly out and trunc
+
+	ofile << "#x\ty\tu\tv\n" ;
+	
+	std::array<int,2> ix_ind;
+	std::array<float,2> x_ind;
+	
+	for (auto j = 0; j <= grid2d.Ld[1]; j++) {
+		for (auto i = 0; i <= grid2d.Ld[0]; i++) {
+			float u_ij = dev_grid2d.u[ i + grid2d.staggered_Ld[0] * j ] ; 
+			float v_ij = dev_grid2d.v[ i + grid2d.staggered_Ld[0] * j ] ; 
+			
+			ix_ind[0] = i; 
+			ix_ind[1] = j; 
+			x_ind = grid2d.gridpt_to_space( ix_ind ) ;
+			
+			ofile << x_ind[0] << "\t" << x_ind[1] << "\t" << u_ij << "\t" << v_ij << std::endl;
+		}
+	}
+	ofile.close();
+	fileiot044flag = true;
+} // END if of (t = 4.4 case)
+	else if ((t>5.4) && (fileiot054flag == false) ) { 
+			std::ofstream ofile; // no file mode is set
+	ofile.open("velocity_gput054.dat"); // mode implicitly out and trunc
+
+	ofile << "#x\ty\tu\tv\n" ;
+	
+	std::array<int,2> ix_ind;
+	std::array<float,2> x_ind;
+	
+	for (auto j = 0; j <= grid2d.Ld[1]; j++) {
+		for (auto i = 0; i <= grid2d.Ld[0]; i++) {
+			float u_ij = dev_grid2d.u[ i + grid2d.staggered_Ld[0] * j ] ; 
+			float v_ij = dev_grid2d.v[ i + grid2d.staggered_Ld[0] * j ] ; 
+			
+			ix_ind[0] = i; 
+			ix_ind[1] = j; 
+			x_ind = grid2d.gridpt_to_space( ix_ind ) ;
+			
+			ofile << x_ind[0] << "\t" << x_ind[1] << "\t" << u_ij << "\t" << v_ij << std::endl;
+		}
+	}
+	ofile.close();
+	fileiot054flag = true;
+} // END if of (t = 5.4 case)
+	else if ((t>6.4) && (fileiot064flag == false) ) { 
+			std::ofstream ofile; // no file mode is set
+	ofile.open("velocity_gput064.dat"); // mode implicitly out and trunc
+
+	ofile << "#x\ty\tu\tv\n" ;
+	
+	std::array<int,2> ix_ind;
+	std::array<float,2> x_ind;
+	
+	for (auto j = 0; j <= grid2d.Ld[1]; j++) {
+		for (auto i = 0; i <= grid2d.Ld[0]; i++) {
+			float u_ij = dev_grid2d.u[ i + grid2d.staggered_Ld[0] * j ] ; 
+			float v_ij = dev_grid2d.v[ i + grid2d.staggered_Ld[0] * j ] ; 
+			
+			ix_ind[0] = i; 
+			ix_ind[1] = j; 
+			x_ind = grid2d.gridpt_to_space( ix_ind ) ;
+			
+			ofile << x_ind[0] << "\t" << x_ind[1] << "\t" << u_ij << "\t" << v_ij << std::endl;
+		}
+	}
+	ofile.close();
+	fileiot064flag = true;
+} // END if of (t = 6.4 case)
+	else if ((t>7.4) && (fileiot074flag == false) ) { 
+			std::ofstream ofile; // no file mode is set
+	ofile.open("velocity_gput074.dat"); // mode implicitly out and trunc
+
+	ofile << "#x\ty\tu\tv\n" ;
+	
+	std::array<int,2> ix_ind;
+	std::array<float,2> x_ind;
+	
+	for (auto j = 0; j <= grid2d.Ld[1]; j++) {
+		for (auto i = 0; i <= grid2d.Ld[0]; i++) {
+			float u_ij = dev_grid2d.u[ i + grid2d.staggered_Ld[0] * j ] ; 
+			float v_ij = dev_grid2d.v[ i + grid2d.staggered_Ld[0] * j ] ; 
+			
+			ix_ind[0] = i; 
+			ix_ind[1] = j; 
+			x_ind = grid2d.gridpt_to_space( ix_ind ) ;
+			
+			ofile << x_ind[0] << "\t" << x_ind[1] << "\t" << u_ij << "\t" << v_ij << std::endl;
+		}
+	}
+	ofile.close();
+	fileiot074flag = true;
+} // END if of (t = 7.4 case)
+	else if ((t>8.4) && (fileiot084flag == false) ) { 
+			std::ofstream ofile; // no file mode is set
+	ofile.open("velocity_gput084.dat"); // mode implicitly out and trunc
+
+	ofile << "#x\ty\tu\tv\n" ;
+	
+	std::array<int,2> ix_ind;
+	std::array<float,2> x_ind;
+	
+	for (auto j = 0; j <= grid2d.Ld[1]; j++) {
+		for (auto i = 0; i <= grid2d.Ld[0]; i++) {
+			float u_ij = dev_grid2d.u[ i + grid2d.staggered_Ld[0] * j ] ; 
+			float v_ij = dev_grid2d.v[ i + grid2d.staggered_Ld[0] * j ] ; 
+			
+			ix_ind[0] = i; 
+			ix_ind[1] = j; 
+			x_ind = grid2d.gridpt_to_space( ix_ind ) ;
+			
+			ofile << x_ind[0] << "\t" << x_ind[1] << "\t" << u_ij << "\t" << v_ij << std::endl;
+		}
+	}
+	ofile.close();
+	fileiot084flag = true;
+} // END if of (t = 8.4 case)
+	else if ((t>9.4) && (fileiot094flag == false) ) { 
+			std::ofstream ofile; // no file mode is set
+	ofile.open("velocity_gput094.dat"); // mode implicitly out and trunc
+
+	ofile << "#x\ty\tu\tv\n" ;
+	
+	std::array<int,2> ix_ind;
+	std::array<float,2> x_ind;
+	
+	for (auto j = 0; j <= grid2d.Ld[1]; j++) {
+		for (auto i = 0; i <= grid2d.Ld[0]; i++) {
+			float u_ij = dev_grid2d.u[ i + grid2d.staggered_Ld[0] * j ] ; 
+			float v_ij = dev_grid2d.v[ i + grid2d.staggered_Ld[0] * j ] ; 
+			
+			ix_ind[0] = i; 
+			ix_ind[1] = j; 
+			x_ind = grid2d.gridpt_to_space( ix_ind ) ;
+			
+			ofile << x_ind[0] << "\t" << x_ind[1] << "\t" << u_ij << "\t" << v_ij << std::endl;
+		}
+	}
+	ofile.close();
+	fileiot094flag = true;
+} // END if of (t = 9.4 case)
+	else if ((t>12.6) && (fileiot126flag == false) ) { 
+			std::ofstream ofile; // no file mode is set
+	ofile.open("velocity_gput126.dat"); // mode implicitly out and trunc
+
+	ofile << "#x\ty\tu\tv\n" ;
+	
+	std::array<int,2> ix_ind;
+	std::array<float,2> x_ind;
+	
+	for (auto j = 0; j <= grid2d.Ld[1]; j++) {
+		for (auto i = 0; i <= grid2d.Ld[0]; i++) {
+			float u_ij = dev_grid2d.u[ i + grid2d.staggered_Ld[0] * j ] ; 
+			float v_ij = dev_grid2d.v[ i + grid2d.staggered_Ld[0] * j ] ; 
+			
+			ix_ind[0] = i; 
+			ix_ind[1] = j; 
+			x_ind = grid2d.gridpt_to_space( ix_ind ) ;
+			
+			ofile << x_ind[0] << "\t" << x_ind[1] << "\t" << u_ij << "\t" << v_ij << std::endl;
+		}
+	}
+	ofile.close();
+	fileiot126flag = true;
+} // END if of (t = 12.6 case)
+	else if ((t>15.) && (fileiot150flag == false) ) { 
+			std::ofstream ofile; // no file mode is set
+	ofile.open("velocity_gput150.dat"); // mode implicitly out and trunc
+
+	ofile << "#x\ty\tu\tv\n" ;
+	
+	std::array<int,2> ix_ind;
+	std::array<float,2> x_ind;
+	
+	for (auto j = 0; j <= grid2d.Ld[1]; j++) {
+		for (auto i = 0; i <= grid2d.Ld[0]; i++) {
+			float u_ij = dev_grid2d.u[ i + grid2d.staggered_Ld[0] * j ] ; 
+			float v_ij = dev_grid2d.v[ i + grid2d.staggered_Ld[0] * j ] ; 
+			
+			ix_ind[0] = i; 
+			ix_ind[1] = j; 
+			x_ind = grid2d.gridpt_to_space( ix_ind ) ;
+			
+			ofile << x_ind[0] << "\t" << x_ind[1] << "\t" << u_ij << "\t" << v_ij << std::endl;
+		}
+	}
+	ofile.close();
+	fileiot150flag = true;
+} // END if of (t = 15.0 case)
+	// ################################################################
+	// ###################### END File I/O ############################
+
+
 	} // END end for loop, time iteration loop 
 
+	// sanity check
 	std::cout << " Right after time iteration loop, final p : " << std::endl;
 	std::cout << "\n dev_grid2d.p : " << std::endl; 
 //		for (auto j = (grid2d.staggered_Ld[1]-1); j >= 0; --j) {
@@ -507,6 +651,29 @@ int main(int argc, char* argv[]) {
 			for (auto i = 0; i < grid2d.staggered_Ld[0]/2; ++i) {
 				std::cout << std::setprecision(3) << dev_grid2d.p[i+(grid2d.staggered_Ld[0])*j] << " " ; }
 			std::cout << std::endl ; }
+	// END of sanity check
+
+	std::ofstream ofile; // no file mode is set
+	ofile.open("velocity_gputfinal.dat"); // mode implicitly out and trunc
+
+	ofile << "#x\ty\tu\tv\n" ;
+	
+	std::array<int,2> ix_ind;
+	std::array<float,2> x_ind;
+	
+	for (auto j = 0; j <= grid2d.Ld[1]; j++) {
+		for (auto i = 0; i <= grid2d.Ld[0]; i++) {
+			float u_ij = dev_grid2d.u[ i + grid2d.staggered_Ld[0] * j ] ; 
+			float v_ij = dev_grid2d.v[ i + grid2d.staggered_Ld[0] * j ] ; 
+			
+			ix_ind[0] = i; 
+			ix_ind[1] = j; 
+			x_ind = grid2d.gridpt_to_space( ix_ind ) ;
+			
+			ofile << x_ind[0] << "\t" << x_ind[1] << "\t" << u_ij << "\t" << v_ij << std::endl;
+		}
+	}
+	ofile.close();
 
 
 	
