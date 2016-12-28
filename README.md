@@ -3,7 +3,9 @@ CUDA C/C++ scripts for Computational Fluid Dynamics (CFD) for presentation purpo
 
 ## Abstract:
 
-*20161228 update*:I implemented, from "soup to nuts", a 2-dimensional Navier-Stokes equations solver for viscous, incompressible fluids with finite difference methods, in CUDA C++11, along with using the thrust library, to run entirely in parallel on the GPU (graphics processing unit).  The implementation beats previous implementations in terms of speed, by taking advantage of vectors from thrust that reside entirely on the GPU, taking advantage of the asynchronous nature of CUDA threads in the Poisson solver for pressure, and removing the CPU-GPU communication bottleneck, such as in the case of Niemeyer and Sung (2013), by using the parallel reduce algorithm (thrust) computed directly on the GPU, for summations, and in terms of scalability, with a scalable memory access pattern in each of the 2-dimensions, based upon my previous work (available on my github repository, CUDACFD_out).  The lid-driven cavity is a classic computational fluid dynamics (CFD) problem as a validation test for CFD routines, where a fluid fills a square container and the so-called "lid" of the container, either at the "top" or "right" is given a constant velocity, thereby, setting the fluid in motion.  Contour plots of the components of the velocity vector fields were made with Python's pandas, matplotlib, and displayed in jupyter notebooks.  For the purposes of demonstrating real-time visualization (video), I modularized (i.e. wrote C++11 classes) Niemeyer and Sung's original code, with a red-black Gauss-Seidel method with successive over-relaxation (SOR) for the Poisson solver of the pressure, and used my previous OpenGL C++11 class to texture graphics for the components of the velocity vector field rendered entirely on the GPU.  In both cases, one, in terms of software architecture, I implemented the best practices with C++11 in terms of modularity (classes and objects) and using containers (e.g. vectors, arrays, both on the host CPU and device GPU).  Two, writing parallelized code in CUDA C++11 for the GPU allows for scalable grids to grid sizes (in my case, 512x512 and above) much larger than previous work (cf. Griebel et. al, Marchi, et. al.).  The big idea is that with these higher resolutions, we're able to resolve physical phenomenon literally unseen before, such as the small eddies that form around the large eddy in the cavity's center, as clearly shown in the video from 256x256 grid to 512x512 grid.  
+*20161228 update*: Most recently, I implemented, from "soup to nuts", a 2-dimensional Navier-Stokes equations solver for viscous, incompressible fluids with finite difference methods, in CUDA C++11, along with using the thrust library, to run entirely in parallel on the GPU (graphics processing unit).  The implementation beats previous implementations in terms of speed, by taking advantage of vectors from thrust that reside entirely on the GPU, taking advantage of the asynchronous nature of CUDA threads in the Poisson solver for pressure, and removing the CPU-GPU communication bottleneck, such as in the case of Niemeyer and Sung (2013), by using the parallel reduce algorithm (thrust) computed directly on the GPU, for summations, and in terms of scalability, with a scalable memory access pattern in each of the 2-dimensions, based upon my previous work (available on my github repository, CUDACFD_out).  The lid-driven cavity is a classic computational fluid dynamics (CFD) problem as a validation test for CFD routines, where a fluid fills a square container and the so-called "lid" of the container, either at the "top" or "right" is given a constant velocity, thereby, setting the fluid in motion.
+
+
 
 
 - C++14 standard on host CPU code/C++11 standard on device GPU as of CUDA Toolkit 7.5 
@@ -30,6 +32,29 @@ CUDA C/C++ scripts for Computational Fluid Dynamics (CFD) for presentation purpo
 ### Descriptions following each of the output
 
 These descriptions for each of the output are also on the YouTube video descriptions and I reiterate them here, with some editing.
+
+#### [`lid-driven-cavity_gpu-gfx/'](https://youtu.be/6ciU1YiKPC0) and [`NavSt2DIncompFiniteDiff/'](https://github.com/ernestyalumni/CUDACFD_out/tree/master/NavSt2DIncompFiniteDiff)
+
+I implemented, from "soup to nuts", a 2-dimensional Navier-Stokes equations solver for *viscous, incompressible* fluids with *finite difference methods*, in CUDA C++11, along with using the `thrust` library, to run entirely in parallel on the GPU (graphics processing unit).  The implementation beats previous implementations in terms of speed, by taking advantage of vectors from thrust that reside entirely on the GPU, taking advantage of the *asynchronous nature* of CUDA threads in the Poisson solver for pressure, and removing the CPU-GPU communication bottleneck, such as in the case of Niemeyer and Sung (2013), by using the *parallel reduce algorithm* (thrust) computed directly on the GPU, for summations, and in terms of scalability, with a scalable memory access pattern in each of the 2-dimensions, based upon my previous work (available on my github repository, CUDACFD_out).
+
+The lid-driven cavity is a *classic* computational fluid dynamics (CFD) problem as a **validation test for CFD routines**, where a fluid fills a square container and the so-called "lid" of the container, either at the "top" or "right" is given a constant velocity, thereby, setting the fluid in motion.
+
+Contour plots of the components of the velocity vector fields were made with Python's pandas, matplotlib, and displayed in jupyter notebooks.
+
+For the purposes of demonstrating real-time visualization (video), I modularized (i.e. wrote C++11 classes) Niemeyer and Sung's original code, with a red-black Gauss-Seidel method with successive over-relaxation (SOR) for the Poisson solver of the pressure, and used my previous OpenGL C++11 class to texture graphics for the components of the velocity vector field rendered entirely on the GPU.
+
+In both cases, one, in terms of software architecture, I implemented the best practices with C++11 in terms of modularity (classes and objects) and using containers (e.g. vectors, arrays, both on the host CPU and device GPU).  Two, writing parallelized code in CUDA C++11 for the GPU allows for scalable grids to grid sizes (in my case, 512x512 and above) much larger than previous work (cf. Griebel et. al, Marchi, et. al.).  The big idea is that with these higher resolutions, we're able to resolve physical phenomenon literally unseen before, such as the small eddies that form around the large eddy in the cavity's center, as clearly shown in the video from 256x256 grid to 512x512 grid.  
+
+##### References:
+
+- Michael Griebel, Thomas Dornsheifer, Tilman Neunhoeffer.  **Numerical Simulation in Fluid Dynamics: A Practical Introduction (Monographs on Mathematical Modeling and Computation)**.  SIAM: Society for Industrial and Applied Mathematics (December 1997).  ISBN-13: 978-0898713985  QA911.G718  1997
+  
+See also [Software of Research group of Prof. Dr. M. Griebel, Institute f$\"{u}$r Numerische Simulation](http://wissrech.ins.uni-bonn.de/research/software/}),  http://wissrech.ins.uni-bonn.de/research/software/
+- Kyle E. Niemeyer, Chih-Jen Sung.  *Accelerating reactive-flow simulatio<ns using graphics processing units*.  51st AIAA Aerospace Sciences Meeting including the New Horizons Forum and Aerospace Exposition 07-10 January 2013, Grapevine, Texas. American Institute of Aeronautics and Astronautics.  AIAA 2013-0371
+- Carlos Henrique Marchi, Roberta Suero, Luciano Kiyoshi Araki.  *The Lid-Driven Square Cavity Flow: Numerical Solution with a 1024 x 1024 Grid*.  **J. of the Braz. Soc. of Mich. Sci. & Eng.**  **186**, Vol. XXXI, No. 3, July-September 2009.  ABCM
+
+
+
 
 #### [`convect1dupwind`](https://youtu.be/mRJGl0yfiH8)
 
