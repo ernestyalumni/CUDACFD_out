@@ -21,9 +21,11 @@
 
 ![uv velocity components for t=9.4 s](https://raw.githubusercontent.com/ernestyalumni/CUDACFD_out/master/NavSt2DIncompFiniteDiff/images/uv_Re1000_t094.png)
 
-![u velocity components for t=12.6 s](https://raw.githubusercontent.com/ernestyalumni/CUDACFD_out/master/NavSt2DIncompFiniteDiff/images/u_Re1000_t126.png)
+![uv velocity components for t=12.6 s](https://raw.githubusercontent.com/ernestyalumni/CUDACFD_out/master/NavSt2DIncompFiniteDiff/images/u_Re1000_t126.png)
 
-![u velocity components for t=15.0 s](https://raw.githubusercontent.com/ernestyalumni/CUDACFD_out/master/NavSt2DIncompFiniteDiff/images/u_Re1000_t150.png)
+![uv velocity components for t=15.0 s](https://raw.githubusercontent.com/ernestyalumni/CUDACFD_out/master/NavSt2DIncompFiniteDiff/images/u_Re1000_t150.png)
+
+![uv velocity components for t=16.0 s](https://raw.githubusercontent.com/ernestyalumni/CUDACFD_out/master/NavSt2DIncompFiniteDiff/images/u_Re1000_t160.png)
 
 ##### Lid-driven cavity, $u$ or $x$-component of the velocity field, time evolution at Reynolds number $Re = 1000$.
 
@@ -48,3 +50,5 @@
 ![u velocity components for t=12.6 s](https://raw.githubusercontent.com/ernestyalumni/CUDACFD_out/master/NavSt2DIncompFiniteDiff/images/u_Re1000_t126.png)
 
 ![u velocity components for t=15.0 s](https://raw.githubusercontent.com/ernestyalumni/CUDACFD_out/master/NavSt2DIncompFiniteDiff/images/u_Re1000_t150.png)
+
+![u velocity components for t=16.0 s](https://raw.githubusercontent.com/ernestyalumni/CUDACFD_out/master/NavSt2DIncompFiniteDiff/images/u_Re1000_t160.png)
