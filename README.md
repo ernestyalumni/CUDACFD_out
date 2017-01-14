@@ -16,7 +16,11 @@ Of note:
 
 See the directories (folders) for `./NavSt2DIncompFiniteDiff/` for my parallelization.  To output OpenGL graphics, because it was much easier to access the C++ pointers to device memory, I used the code by Niemeyer and Sung (2013), which is in `./lid-driven-cavity_gpu-gfx`.  The rendered video was both visually pleasing to look at and informative, because with the power of massively parallel computing, larger grid sizes (e.g. 512x512) can be chosen to *resolve smaller counter-rotating eddies in the flow*, with greater computing accuracy. 
 
-https://www.youtube.com/playlist?list=PLzrtxrRuWAhJQj-9do_IVM2YZw7IcEFjy
+[Lid-driven cavity CFD,256x256,Re=100000, CUDA C++11, w/ finite diff for incompress. Nav.-Stokes eq
+](https://youtu.be/_E33hmzK3Pw)
+
+[Lid-driven cavity CFD,512x512,Re=100000, CUDA C++11, w/ finite diff for incompress. Nav.-Stokes eq
+](https://youtu.be/6ciU1YiKPC0)
 
 [CUDACFD_out YouTube video Playlist](https://www.youtube.com/playlist?list=PLzrtxrRuWAhJQj-9do_IVM2YZw7IcEFjy)
 
