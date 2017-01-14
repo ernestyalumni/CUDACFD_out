@@ -638,7 +638,7 @@ This is implemented in 2-dimensions in \verb|Euler2d/physlib| in \verb|convect.c
 
 As before, this code can be easily implemented for 3-dimensions.  
 
-\section{Miscellaneous Notes}
+\section{Miscellaneous Notes for convection methods, etc.}
 
 convect1dupwind.cu 400 threads, 1.0m, delta t 1/10.
 
@@ -658,6 +658,39 @@ Euler2d 640 640 block, deltat 5 x 10 to the -6, 2,2 threads per block, 10 iterat
 
 I used the \verb|functional| library to interact well with OpenGL, inherently a C API.  With \verb|nvcc| as of right now, CUDA Toolkit 7.5, you cannot factor code into C++ classes that'll compile with \verb|nvcc| compiler.  But you can use \verb|functional| to make functionals that'll output out functions for OpenGL.  
 
+\section{Incompressible Navier-Stokes Equations}
+
+Following Griebel, Dornsheifer, and Neunhoeffer (1997) \cite{GDN1997}, I implemented the parallelization of 
+
+numerical solution of the unsteady incompressible Navier-Stokes equations, using the method of finite differences for the discretization of the partial differential equations.  
+
+As an application, I simulate \emph{lid-driven cavity flow} in a 2-dimensional square domain.  The physical configuration consists of a square container filled with a fluid.  The lid of the container moves with a fixed, constant velocity, thus setting the fluid in motion.
+
+No-slip boundary conditions are imposed first on all four segments of the square boundary.  Then the condition of a lid moving with fixed constant velocity (set to 1, without loss of generality), is imposed on the ``top'' side of the square.
+
+The whole point in parallelizing this Navier-Stokes equation solver is to both achieve faster speeds and higher resolution, more grid points.  Even with this so-called structured grid (uniform step sizes between grid points), we can resolve smaller counter-rotating eddies in the flow, with greater computing accuracy.  
+
+
+I implemented in CUDA C++11 the parallelization of a numerical solver of the unsteady incompressible Navier-Stokes equations, using finite differences method for the discretization of the partial differential equations.  As an application, I simulate \emph{lid-driven cavity flow} in a 2-dimensional square domain.
+
+- bijective, stencil operations (for finite difference methods) reading and writing from global memory, i.e. there's a one-to-one correspondence between a thread on the device GPU and a single point on the 2-dimensional grid, representing spatial positions.
+- I demonstrate the use of C++11/14 classes on CUDA for modularity, i.e. being able to reuse code much easier.  The modularity follows from considering physical scalar quantities and vector fields over Euclidean space.    
+- 
+
+Domain was discretized with a uniform, staggered grid (i.e. the pressure values are located in the centers of the grid cells, while the velocity values are located along the edges, with the rationale being to prevent possible pressure oscillations).
+
+Using the incompressible fluid flow condition ($\text{div}\mathbf{u} =0$), the pressure $p$ is governed by the Poisson equation.  The Poisson equation is solved with the so-called red-black Gauss-Seidel method with successive over-relaxation (SOR).  In my implementation, in a single kernel call to the GPU, I first solve for the pressure iteratively for the so-called red cells, and then solve for the pressure iteratively for the other ``black'' cells.  I synchronize the threads across all thread blocks with the command \verb|__syncthreads()|.  Nevertheless, it seems that with this implementation, I am able to solve the Poisson equation with fewer iterations than if I had split up the 2-dimensional grid underlying the pressure values into 2 grids.  Possibly, this could be due to fewer kernel calls (1 instead of 2) and, within this kernel, taking advantage of the asynchornous nature of CUDA.
+
+- the Poisson equation for pressure was solved with the so-called red-black Gauss-Seidel method with successive over-relaxation (SOR) - I demonstrate that with a single kernel call to the GPU, solving for pressure iteratively can be done with fewer iterations, than if the grid was split up into two for ``red'' and ``black.''  
+
+To evaluate the stopping criterion for the SOR iteration, to calculate the $L^2$-norm of the pressure (for a relative SOR tolerance), and the maximum velocities to calculate the time-step size, based on the famous CLF (Courant-Friedrichs-Lewy) coefficient, I utilized the thrust library and its implementation of the parallel reduce algorithm, thus improving performance for what would be inherently a serial operation (summing or taking the maximum of all values across an array).
+
+
+As Stephen Jones and Research director of said on Udacity, we cannot simply port the previous serial, CPU versions for computational fluid dynamics (CFD), numerical simulation, multiphysics, to the GPU.  In order to harness the power of massive parallelism of GPUs, we must design new programming strategies and algorithms specifically targeted to massively parallel processors.  I submit that we should develop these strategies to match as close to the (mathematical) physics involved, as I had demonstrated with how I constructed C++11/14 classes to match Euclidean space and the physical scalar quantities and vector fields over it.  By developing new solver for fluid flow using GPUs to improve accuracy, increase resolution, and speed up computation, we can enable previously inaccessible levels of detail for high-fidelity CFD. 
+
+
+
+
 
 \begin{thebibliography}{9}
 \bibitem{MLeBellacFMortessagneGBatrouni2004}
@@ -669,7 +702,7 @@ Michael Griebel, Thomas Dornsheifer, Tilman Neunhoeffer.  \textbf{Numerical Simu
 See also \href{http://wissrech.ins.uni-bonn.de/research/software/}{Software of Research group of Prof. Dr. M. Griebel, Institute f\"{u}r Numerische Simulation} \url{http://wissrech.ins.uni-bonn.de/research/software/}
 
 \bibitem{NiSu2013}
-Kyle E. Niemeyer, Chih-Jen Sung.  \emph{Accelerating reactive-flow simulatio<ns using graphics processing units}.  51st AIAA Aerospace Sciences Meeting including the New Horizons Forum and Aerospace Exposition 07-10 January 2013, Grapevine, Texas. American Institute of Aeronautics and Astronautics.  AIAA 2013-0371
+Kyle E. Niemeyer, Chih-Jen Sung.  \emph{Accelerating reactive-flow simulatio<ns using graphics processing units}.  51st AIAA Aerospace Sciences Meeting including the New Horizons Forum and Aerospace Exposition 07-10 January 2013, Grapevine, Texas. American Institute of Aeronautics and Astronautics.  AIAA 2013-0371  \verb|Niemeyer-Sung-ASM_2013.pdf|
 
 \bibitem{MSA2009}
   Carlos Henrique Marchi, Roberta Suero, Luciano Kiyoshi Araki.  \emph{The Lid-Driven Square Cavity Flow: Numerical Solution with a 1024 x 1024 Grid}.  \textbf{J. of the Braz. Soc. of Mich. Sci. \& Eng.}  \textbf{186}, Vol. XXXI, No. 3, July-September 2009.  ABCM

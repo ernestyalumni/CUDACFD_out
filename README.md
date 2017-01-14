@@ -3,7 +3,25 @@ CUDA C/C++ scripts for Computational Fluid Dynamics (CFD) for presentation purpo
 
 ## Abstract:
 
-*20161228 update*: Most recently, I implemented, from "soup to nuts", a 2-dimensional Navier-Stokes equations solver for viscous, incompressible fluids with finite difference methods, in CUDA C++11, along with using the thrust library, to run entirely in parallel on the GPU (graphics processing unit).  The implementation beats previous implementations in terms of speed, by taking advantage of vectors from thrust that reside entirely on the GPU, taking advantage of the asynchronous nature of CUDA threads in the Poisson solver for pressure, and removing the CPU-GPU communication bottleneck, such as in the case of Niemeyer and Sung (2013), by using the parallel reduce algorithm (thrust) computed directly on the GPU, for summations, and in terms of scalability, with a scalable memory access pattern in each of the 2-dimensions, based upon my previous work (available on my github repository, CUDACFD_out).  The lid-driven cavity is a classic computational fluid dynamics (CFD) problem as a validation test for CFD routines, where a fluid fills a square container and the so-called "lid" of the container, either at the "top" or "right" is given a constant velocity, thereby, setting the fluid in motion.
+*20161228 update*: I implemented in **CUDA C++11** the parallelization of a numerical solver of the unsteady *incompressible Navier-Stokes equations*, using *finite differences* method for the discretization of the partial differential equations.  As an application, I simulate *lid-driven cavity flow* in a 2-dimensional square domain.
+
+Of note:   
+- For the *stencil* operations needed for finite difference methods, I simply used global memory read-writes, i.e. there's a one-to-one correspondence between a thread on the device GPU and a single point on the 2-dimensional grid that represents spatial positions.
+
+- I demonstrate the use of C++11/14 classes on CUDA for modularity, i.e. being able to reuse code much easier.  The modularity follows from considering physical scalar quantities and vector fields over Euclidean space.    
+
+- the Poisson equation for pressure was solved with the so-called red-black Gauss-Seidel method with successive over-relaxation (SOR) - I demonstrate that with a single kernel call to the GPU, solving for pressure iteratively can be done with fewer iterations, than if the grid was split up into two for ``red'' and ``black.''  
+
+- To evaluate the stopping criterion for the SOR iteration, to calculate the $L^2$-norm of the pressure (for a relative SOR tolerance), and the maximum velocities to calculate the time-step size, based on the famous CLF (Courant-Friedrichs-Lewy) number, I utilized the *thrust* library and its implementation of the parallel reduce algorithm, thus improving performance for what would be inherently a serial operation (summing or taking the maximum of all values across an array).
+
+See the directories (folders) for `./NavSt2DIncompFiniteDiff/` for my parallelization.  To output OpenGL graphics, because it was much easier to access the C++ pointers to device memory, I used the code by Niemeyer and Sung (2013), which is in `./lid-driven-cavity_gpu-gfx`.  The rendered video was both visually pleasing to look at and informative, because with the power of massively parallel computing, larger grid sizes (e.g. 512x512) can be chosen to *resolve smaller counter-rotating eddies in the flow*, with greater computing accuracy. 
+
+https://www.youtube.com/playlist?list=PLzrtxrRuWAhJQj-9do_IVM2YZw7IcEFjy
+
+[CUDACFD_out YouTube video Playlist](https://www.youtube.com/playlist?list=PLzrtxrRuWAhJQj-9do_IVM2YZw7IcEFjy)
+
+
+The other directories contain previous scripts to demonstrate simulation of convection and heat equation solvers.
 
 
 
@@ -25,9 +43,9 @@ CUDA C/C++ scripts for Computational Fluid Dynamics (CFD) for presentation purpo
 | `convect2dfinitedifftex/`   | `./convect2dfinitedifftex`  | 2-dimensional convection according to mass conservation by finite difference method with OpenGL 2-dimensional texture graphics; initial condition for mass density is a gaussian distribution | [screen capture of a convect2dfinitedifftex run](https://youtu.be/RGQOIX70jvg) |
 | `convect3dfinitedifftex/`   | `./convect3dfinitedifftex`  | 3-dimensional convection according to mass conservation by finite difference method with OpenGL 2-dimensional texture graphics; initial condition for mass density is a gaussian distribution | [screen capture of a convect3dfinitedifftex run](https://youtu.be/mhXK6xtMz44) |
 | `Euler2d/`   | `./Euler2d`  | Numerical computation of 2-dimensional Euler equations by finite difference method with OpenGL 2-dimensional texture graphics; initial condition for mass density is a gaussian distribution | [screen capture of a Euler2d run](https://youtu.be/KLIfUj3V8pY) |
-| `lid-driven-cavity_gpu-gfx/' | './lid-driven-cavity_gpu-gfx' | *2-dim. Navier-Stokes equations solver for viscous, incompressible fluids with finite difference* methods, in CUDA C++11, with initial parameters set for the **lid-driven cavity** problem. I modularized ((i.e. wrote C++11 classes) Niemeyer and Sung's original code, with a red-black Gauss-Seidel method with successive over-relaxation (SOR) for the Poisson solver of the pressure, and used my previous OpenGL C++11 class to texture graphics for the components of the velocity vector field rendered entirely on the GPU. | [Lid-driven cavity CFD,512x512,Re=100000, CUDA C++11, w/ finite diff for incompress. Nav.-Stokes eq](https://youtu.be/6ciU1YiKPC0), [Lid-driven cavity CFD,256x256,Re=100000, CUDA C++11, w/ finite diff for incompress. Nav.-Stokes eq](https://youtu.be/_E33hmzK3Pw) |
+| `lid-driven-cavity_gpu-gfx/` | `./lid-driven-cavity_gpu-gfx` | *2-dim. Navier-Stokes equations solver for viscous, incompressible fluids with finite difference* methods, in CUDA C++11, with initial parameters set for the **lid-driven cavity** problem. I modularized ((i.e. wrote C++11 classes) Niemeyer and Sung's original code, with a red-black Gauss-Seidel method with successive over-relaxation (SOR) for the Poisson solver of the pressure, and used my previous OpenGL C++11 class to texture graphics for the components of the velocity vector field rendered entirely on the GPU. | [Lid-driven cavity CFD,512x512,Re=100000, CUDA C++11, w/ finite diff for incompress. Nav.-Stokes eq](https://youtu.be/6ciU1YiKPC0), [Lid-driven cavity CFD,256x256,Re=100000, CUDA C++11, w/ finite diff for incompress. Nav.-Stokes eq](https://youtu.be/_E33hmzK3Pw) |
 |
-| `NavSt2DIncompFiniteDiff/' | './NavSt2DIncompFiniteDiff/' | I implemented, from "soup to nuts", a 2-dimensional Navier-Stokes equations solver for viscous, incompressible fluids with finite difference methods, in CUDA C++11, along with using the thrust library, to run entirely in parallel on the GPU (graphics processing unit), with the GPU global memory access patterns for 2-dim. stencil used in this here github repository, [CUDACFD_out](https://github.com/ernestyalumni/CUDACFD_out)   | |
+| `NavSt2DIncompFiniteDiff/` | `./NavSt2DIncompFiniteDiff/` | I implemented, from "soup to nuts", a 2-dimensional Navier-Stokes equations solver for viscous, incompressible fluids with finite difference methods, in CUDA C++11, along with using the thrust library, to run entirely in parallel on the GPU (graphics processing unit), with the GPU global memory access patterns for 2-dim. stencil used in this here github repository, [CUDACFD_out](https://github.com/ernestyalumni/CUDACFD_out)   | |
 
 ### Descriptions following each of the output
 
